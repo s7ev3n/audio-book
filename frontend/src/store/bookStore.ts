@@ -1,1 +1,71 @@
-import { create } from 'zustand';\nimport { BookInfo, ChapterInfo } from '../types/book';\n\ninterface BookState {\n  currentBook: BookInfo | null;\n  chapters: ChapterInfo[];\n  currentChapter: ChapterInfo | null;\n  currentChapterIndex: number;\n  originalText: string;\n  translatedText: string;\n  isTranslating: boolean;\n  isGeneratingAudio: boolean;\n  audioUrl: string | null;\n  \n  // Actions\n  setCurrentBook: (book: BookInfo) => void;\n  setChapters: (chapters: ChapterInfo[]) => void;\n  setCurrentChapter: (chapter: ChapterInfo, index: number) => void;\n  setOriginalText: (text: string) => void;\n  setTranslatedText: (text: string) => void;\n  setTranslating: (isTranslating: boolean) => void;\n  setGeneratingAudio: (isGenerating: boolean) => void;\n  setAudioUrl: (url: string | null) => void;\n  clearBook: () => void;\n}\n\nexport const useBookStore = create<BookState>((set, get) => ({\n  currentBook: null,\n  chapters: [],\n  currentChapter: null,\n  currentChapterIndex: 0,\n  originalText: '',\n  translatedText: '',\n  isTranslating: false,\n  isGeneratingAudio: false,\n  audioUrl: null,\n\n  setCurrentBook: (book) => set({ currentBook: book }),\n  \n  setChapters: (chapters) => set({ chapters }),\n  \n  setCurrentChapter: (chapter, index) => set({ \n    currentChapter: chapter, \n    currentChapterIndex: index,\n    originalText: '',\n    translatedText: '',\n    audioUrl: null\n  }),\n  \n  setOriginalText: (text) => set({ originalText: text }),\n  \n  setTranslatedText: (text) => set({ translatedText: text }),\n  \n  setTranslating: (isTranslating) => set({ isTranslating }),\n  \n  setGeneratingAudio: (isGenerating) => set({ isGeneratingAudio }),\n  \n  setAudioUrl: (url) => set({ audioUrl: url }),\n  \n  clearBook: () => set({\n    currentBook: null,\n    chapters: [],\n    currentChapter: null,\n    currentChapterIndex: 0,\n    originalText: '',\n    translatedText: '',\n    isTranslating: false,\n    isGeneratingAudio: false,\n    audioUrl: null\n  })\n}));
+import { create } from 'zustand';
+import { BookInfo, ChapterInfo } from '../types/book';
+
+interface BookState {
+  currentBook: BookInfo | null;
+  chapters: ChapterInfo[];
+  currentChapter: ChapterInfo | null;
+  currentChapterIndex: number;
+  originalText: string;
+  translatedText: string;
+  isTranslating: boolean;
+  isGeneratingAudio: boolean;
+  audioUrl: string | null;
+  
+  // Actions
+  setCurrentBook: (book: BookInfo) => void;
+  setChapters: (chapters: ChapterInfo[]) => void;
+  setCurrentChapter: (chapter: ChapterInfo, index: number) => void;
+  setOriginalText: (text: string) => void;
+  setTranslatedText: (text: string) => void;
+  setTranslating: (isTranslating: boolean) => void;
+  setGeneratingAudio: (isGenerating: boolean) => void;
+  setAudioUrl: (url: string | null) => void;
+  clearBook: () => void;
+}
+
+export const useBookStore = create<BookState>((set, get) => ({
+  currentBook: null,
+  chapters: [],
+  currentChapter: null,
+  currentChapterIndex: 0,
+  originalText: '',
+  translatedText: '',
+  isTranslating: false,
+  isGeneratingAudio: false,
+  audioUrl: null,
+
+  setCurrentBook: (book) => set({ currentBook: book }),
+  
+  setChapters: (chapters) => set({ chapters }),
+  
+  setCurrentChapter: (chapter, index) => set({ 
+    currentChapter: chapter, 
+    currentChapterIndex: index,
+    originalText: '',
+    translatedText: '',
+    audioUrl: null
+  }),
+  
+  setOriginalText: (text) => set({ originalText: text }),
+  
+  setTranslatedText: (text) => set({ translatedText: text }),
+  
+  setTranslating: (isTranslating) => set({ isTranslating }),
+  
+  setGeneratingAudio: (isGenerating) => set({ isGeneratingAudio: isGenerating }),
+  
+  setAudioUrl: (url) => set({ audioUrl: url }),
+  
+  clearBook: () => set({
+    currentBook: null,
+    chapters: [],
+    currentChapter: null,
+    currentChapterIndex: 0,
+    originalText: '',
+    translatedText: '',
+    isTranslating: false,
+    isGeneratingAudio: false,
+    audioUrl: null
+  })
+}));

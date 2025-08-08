@@ -1,0 +1,2 @@
+# This file ensures the translations directory is tracked by Git
+# while allowing .gitignore to exclude all generated translation files

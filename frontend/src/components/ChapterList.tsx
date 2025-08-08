@@ -137,4 +137,6 @@ const ChapterList: React.FC<ChapterListProps> = ({
       </Box>
     </Box>
   );
-};\n\nexport default ChapterList;
+};
+
+export default ChapterList;

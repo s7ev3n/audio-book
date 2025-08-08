@@ -1,1 +1,60 @@
-import React from 'react';\nimport {\n  AppBar,\n  Toolbar,\n  Typography,\n  Button,\n  Box,\n  IconButton\n} from '@mui/material';\nimport { Home, Upload, Book } from '@mui/icons-material';\nimport { useNavigate } from 'react-router-dom';\nimport { useBookStore } from '../store/bookStore';\n\nconst Header: React.FC = () => {\n  const navigate = useNavigate();\n  const { currentBook, clearBook } = useBookStore();\n\n  const handleHomeClick = () => {\n    navigate('/');\n  };\n\n  const handleUploadClick = () => {\n    clearBook();\n    navigate('/upload');\n  };\n\n  return (\n    <AppBar position=\"static\">\n      <Toolbar>\n        <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>\n          <Book sx={{ mr: 2 }} />\n          <Typography variant=\"h6\" component=\"div\">\n            📚 Audio Book Translator\n          </Typography>\n        </Box>\n        \n        {currentBook && (\n          <Typography variant=\"subtitle1\" sx={{ mr: 2 }}>\n            《{currentBook.title}》 - {currentBook.author}\n          </Typography>\n        )}\n        \n        <Box sx={{ display: 'flex', gap: 1 }}>\n          <IconButton color=\"inherit\" onClick={handleHomeClick}>\n            <Home />\n          </IconButton>\n          <Button \n            color=\"inherit\" \n            startIcon={<Upload />}\n            onClick={handleUploadClick}\n          >\n            上传新书\n          </Button>\n        </Box>\n      </Toolbar>\n    </AppBar>\n  );\n};\n\nexport default Header;
+import React from 'react';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  Box,
+  IconButton
+} from '@mui/material';
+import { Home, Upload, Book } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
+import { useBookStore } from '../store/bookStore';
+
+const Header: React.FC = () => {
+  const navigate = useNavigate();
+  const { currentBook, clearBook } = useBookStore();
+
+  const handleHomeClick = () => {
+    navigate('/');
+  };
+
+  const handleUploadClick = () => {
+    clearBook();
+    navigate('/upload');
+  };
+
+  return (
+    <AppBar position="static">
+      <Toolbar>
+        <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+          <Book sx={{ mr: 2 }} />
+          <Typography variant="h6" component="div">
+            📚 Audio Book Translator
+          </Typography>
+        </Box>
+        
+        {currentBook && (
+          <Typography variant="subtitle1" sx={{ mr: 2 }}>
+            《{currentBook.title}》 - {currentBook.author}
+          </Typography>
+        )}
+        
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <IconButton color="inherit" onClick={handleHomeClick}>
+            <Home />
+          </IconButton>
+          <Button 
+            color="inherit" 
+            startIcon={<Upload />}
+            onClick={handleUploadClick}
+          >
+            上传新书
+          </Button>
+        </Box>
+      </Toolbar>
+    </AppBar>
+  );
+};
+
+export default Header;

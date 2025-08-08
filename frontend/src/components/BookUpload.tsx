@@ -1,1 +1,163 @@
-import React, { useCallback, useState } from 'react';\nimport {\n  Container,\n  Paper,\n  Typography,\n  Box,\n  Button,\n  CircularProgress,\n  Alert,\n  LinearProgress\n} from '@mui/material';\nimport { Upload, CloudUpload } from '@mui/icons-material';\nimport { useDropzone } from 'react-dropzone';\nimport { useMutation } from 'react-query';\nimport { useNavigate } from 'react-router-dom';\n\nimport { epubAPI } from '../services/api';\nimport { useBookStore } from '../store/bookStore';\n\nconst BookUpload: React.FC = () => {\n  const navigate = useNavigate();\n  const { setCurrentBook, setChapters } = useBookStore();\n  const [uploadProgress, setUploadProgress] = useState(0);\n\n  const uploadMutation = useMutation(epubAPI.uploadEpub, {\n    onSuccess: (bookInfo) => {\n      setCurrentBook(bookInfo);\n      setChapters(bookInfo.chapters);\n      navigate(`/reader/${bookInfo.id}`);\n    },\n    onError: (error: any) => {\n      console.error('Upload failed:', error);\n    }\n  });\n\n  const onDrop = useCallback((acceptedFiles: File[]) => {\n    const file = acceptedFiles[0];\n    if (file) {\n      uploadMutation.mutate(file);\n    }\n  }, [uploadMutation]);\n\n  const { getRootProps, getInputProps, isDragActive } = useDropzone({\n    onDrop,\n    accept: {\n      'application/epub+zip': ['.epub']\n    },\n    maxFiles: 1,\n    multiple: false\n  });\n\n  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {\n    const file = event.target.files?.[0];\n    if (file) {\n      uploadMutation.mutate(file);\n    }\n  };\n\n  return (\n    <Container maxWidth=\"md\" sx={{ mt: 4 }}>\n      <Paper elevation={3} sx={{ p: 4 }}>\n        <Typography variant=\"h4\" component=\"h1\" gutterBottom align=\"center\">\n          📖 上传 EPUB 电子书\n        </Typography>\n        \n        <Typography variant=\"body1\" color=\"text.secondary\" align=\"center\" sx={{ mb: 4 }}>\n          支持将英文EPUB电子书翻译成中文有声书\n        </Typography>\n\n        {uploadMutation.isError && (\n          <Alert severity=\"error\" sx={{ mb: 2 }}>\n            上传失败：{uploadMutation.error instanceof Error ? \n              uploadMutation.error.message : '未知错误'}\n          </Alert>\n        )}\n\n        {uploadMutation.isLoading ? (\n          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>\n            <CircularProgress size={60} sx={{ mb: 2 }} />\n            <Typography variant=\"h6\" gutterBottom>\n              正在处理EPUB文件...\n            </Typography>\n            <Typography variant=\"body2\" color=\"text.secondary\">\n              请稍候，正在解析章节内容\n            </Typography>\n            {uploadProgress > 0 && (\n              <Box sx={{ width: '100%', mt: 2 }}>\n                <LinearProgress variant=\"determinate\" value={uploadProgress} />\n              </Box>\n            )}\n          </Box>\n        ) : (\n          <>\n            <Box\n              {...getRootProps()}\n              sx={{\n                border: '2px dashed',\n                borderColor: isDragActive ? 'primary.main' : 'grey.300',\n                borderRadius: 2,\n                p: 4,\n                textAlign: 'center',\n                cursor: 'pointer',\n                bgcolor: isDragActive ? 'action.hover' : 'transparent',\n                transition: 'all 0.2s ease-in-out',\n                '&:hover': {\n                  bgcolor: 'action.hover',\n                  borderColor: 'primary.main'\n                }\n              }}\n            >\n              <input {...getInputProps()} />\n              <CloudUpload sx={{ fontSize: 64, color: 'grey.400', mb: 2 }} />\n              <Typography variant=\"h6\" gutterBottom>\n                {isDragActive \n                  ? '放下文件以开始上传' \n                  : '拖拽EPUB文件到这里，或点击选择文件'\n                }\n              </Typography>\n              <Typography variant=\"body2\" color=\"text.secondary\">\n                仅支持 .epub 格式的电子书文件\n              </Typography>\n            </Box>\n\n            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>\n              <Button\n                variant=\"contained\"\n                component=\"label\"\n                startIcon={<Upload />}\n                size=\"large\"\n              >\n                选择EPUB文件\n                <input\n                  type=\"file\"\n                  accept=\".epub\"\n                  hidden\n                  onChange={handleFileSelect}\n                />\n              </Button>\n            </Box>\n          </>\n        )}\n\n        <Box sx={{ mt: 4, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>\n          <Typography variant=\"h6\" gutterBottom>\n            📋 功能说明\n          </Typography>\n          <Typography variant=\"body2\" component=\"div\">\n            <ul style={{ margin: 0, paddingLeft: '1.5em' }}>\n              <li>上传英文EPUB电子书文件</li>\n              <li>自动解析章节结构和内容</li>\n              <li>使用AI大模型翻译成中文</li>\n              <li>生成中文语音朗读</li>\n              <li>双栏显示原文和译文</li>\n              <li>支持音频播放和文字同步</li>\n            </ul>\n          </Typography>\n        </Box>\n      </Paper>\n    </Container>\n  );\n};\n\nexport default BookUpload;
+import React, { useCallback, useState } from 'react';
+import {
+  Container,
+  Paper,
+  Typography,
+  Box,
+  Button,
+  CircularProgress,
+  Alert,
+  LinearProgress
+} from '@mui/material';
+import { Upload, CloudUpload } from '@mui/icons-material';
+import { useDropzone } from 'react-dropzone';
+import { useMutation } from 'react-query';
+import { useNavigate } from 'react-router-dom';
+
+import { epubAPI } from '../services/api';
+import { useBookStore } from '../store/bookStore';
+
+const BookUpload: React.FC = () => {
+  const navigate = useNavigate();
+  const { setCurrentBook, setChapters } = useBookStore();
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  const uploadMutation = useMutation(epubAPI.uploadEpub, {
+    onSuccess: (bookInfo) => {
+      setCurrentBook(bookInfo);
+      setChapters(bookInfo.chapters);
+      navigate(`/reader/${bookInfo.id}`);
+    },
+    onError: (error: any) => {
+      console.error('Upload failed:', error);
+    }
+  });
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (file) {
+      uploadMutation.mutate(file);
+    }
+  }, [uploadMutation]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/epub+zip': ['.epub']
+    },
+    maxFiles: 1,
+    multiple: false
+  });
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      uploadMutation.mutate(file);
+    }
+  };
+
+  return (
+    <Container maxWidth="md" sx={{ mt: 4 }}>
+      <Paper elevation={3} sx={{ p: 4 }}>
+        <Typography variant="h4" component="h1" gutterBottom align="center">
+          📖 上传 EPUB 电子书
+        </Typography>
+        
+        <Typography variant="body1" color="text.secondary" align="center" sx={{ mb: 4 }}>
+          支持将英文EPUB电子书翻译成中文有声书
+        </Typography>
+
+        {uploadMutation.isError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            上传失败：{uploadMutation.error instanceof Error ? 
+              uploadMutation.error.message : '未知错误'}
+          </Alert>
+        )}
+
+        {uploadMutation.isLoading ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
+            <CircularProgress size={60} sx={{ mb: 2 }} />
+            <Typography variant="h6" gutterBottom>
+              正在处理EPUB文件...
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              请稍候，正在解析章节内容
+            </Typography>
+            {uploadProgress > 0 && (
+              <Box sx={{ width: '100%', mt: 2 }}>
+                <LinearProgress variant="determinate" value={uploadProgress} />
+              </Box>
+            )}
+          </Box>
+        ) : (
+          <>
+            <Box
+              {...getRootProps()}
+              sx={{
+                border: '2px dashed',
+                borderColor: isDragActive ? 'primary.main' : 'grey.300',
+                borderRadius: 2,
+                p: 4,
+                textAlign: 'center',
+                cursor: 'pointer',
+                bgcolor: isDragActive ? 'action.hover' : 'transparent',
+                transition: 'all 0.2s ease-in-out',
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                  borderColor: 'primary.main'
+                }
+              }}
+            >
+              <input {...getInputProps()} />
+              <CloudUpload sx={{ fontSize: 64, color: 'grey.400', mb: 2 }} />
+              <Typography variant="h6" gutterBottom>
+                {isDragActive 
+                  ? '放下文件以开始上传' 
+                  : '拖拽EPUB文件到这里，或点击选择文件'
+                }
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                仅支持 .epub 格式的电子书文件
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+              <Button
+                variant="contained"
+                component="label"
+                startIcon={<Upload />}
+                size="large"
+              >
+                选择EPUB文件
+                <input
+                  type="file"
+                  accept=".epub"
+                  hidden
+                  onChange={handleFileSelect}
+                />
+              </Button>
+            </Box>
+          </>
+        )}
+
+        <Box sx={{ mt: 4, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+          <Typography variant="h6" gutterBottom>
+            📋 功能说明
+          </Typography>
+          <Typography variant="body2" component="div">
+            <ul style={{ margin: 0, paddingLeft: '1.5em' }}>
+              <li>上传英文EPUB电子书文件</li>
+              <li>自动解析章节结构和内容</li>
+              <li>使用AI大模型翻译成中文</li>
+              <li>生成中文语音朗读</li>
+              <li>双栏显示原文和译文</li>
+              <li>支持音频播放和文字同步</li>
+            </ul>
+          </Typography>
+        </Box>
+      </Paper>
+    </Container>
+  );
+};
+
+export default BookUpload;

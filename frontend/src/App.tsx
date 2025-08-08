@@ -1,1 +1,64 @@
-import React, { useState } from 'react';\nimport { ThemeProvider, createTheme } from '@mui/material/styles';\nimport { CssBaseline, Box } from '@mui/material';\nimport { QueryClient, QueryClientProvider } from 'react-query';\nimport { BrowserRouter as Router, Routes, Route } from 'react-router-dom';\n\nimport Header from './components/Header';\nimport BookUpload from './components/BookUpload';\nimport BookReader from './components/BookReader';\nimport { useBookStore } from './store/bookStore';\n\n// 创建Material-UI主题\nconst theme = createTheme({\n  palette: {\n    mode: 'light',\n    primary: {\n      main: '#1976d2',\n    },\n    secondary: {\n      main: '#dc004e',\n    },\n  },\n});\n\n// 创建React Query客户端\nconst queryClient = new QueryClient({\n  defaultOptions: {\n    queries: {\n      retry: 2,\n      staleTime: 5 * 60 * 1000, // 5分钟\n    },\n  },\n});\n\nfunction App() {\n  const { currentBook } = useBookStore();\n\n  return (\n    <QueryClientProvider client={queryClient}>\n      <ThemeProvider theme={theme}>\n        <CssBaseline />\n        <Router>\n          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>\n            <Header />\n            <Box component=\"main\" sx={{ flexGrow: 1, p: 2 }}>\n              <Routes>\n                <Route \n                  path=\"/\" \n                  element={\n                    currentBook ? <BookReader /> : <BookUpload />\n                  } \n                />\n                <Route path=\"/upload\" element={<BookUpload />} />\n                <Route path=\"/reader/:bookId\" element={<BookReader />} />\n              </Routes>\n            </Box>\n          </Box>\n        </Router>\n      </ThemeProvider>\n    </QueryClientProvider>\n  );\n}\n\nexport default App;
+import React, { useState } from 'react';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { CssBaseline, Box } from '@mui/material';
+import { QueryClient, QueryClientProvider } from 'react-query';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+
+import Header from './components/Header';
+import BookUpload from './components/BookUpload';
+import BookReader from './components/BookReader';
+import { useBookStore } from './store/bookStore';
+
+// 创建Material-UI主题
+const theme = createTheme({
+  palette: {
+    mode: 'light',
+    primary: {
+      main: '#1976d2',
+    },
+    secondary: {
+      main: '#dc004e',
+    },
+  },
+});
+
+// 创建React Query客户端
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      staleTime: 5 * 60 * 1000, // 5分钟
+    },
+  },
+});
+
+function App() {
+  const { currentBook } = useBookStore();
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Router>
+          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+            <Header />
+            <Box component="main" sx={{ flexGrow: 1, p: 2 }}>
+              <Routes>
+                <Route 
+                  path="/" 
+                  element={
+                    currentBook ? <BookReader /> : <BookUpload />
+                  } 
+                />
+                <Route path="/upload" element={<BookUpload />} />
+                <Route path="/reader/:bookId" element={<BookReader />} />
+              </Routes>
+            </Box>
+          </Box>
+        </Router>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;
