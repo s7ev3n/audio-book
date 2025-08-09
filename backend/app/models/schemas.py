@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 from datetime import datetime
 from enum import Enum
@@ -11,12 +11,16 @@ class TaskStatus(str, Enum):
 
 # EPUB 相关模型
 class ChapterInfo(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     id: str
     title: str
     content_length: int
     order: int
 
 class BookInfo(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     id: str
     title: str
     author: Optional[str] = None
@@ -28,18 +32,24 @@ class BookInfo(BaseModel):
 
 # 翻译相关模型
 class TranslationRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     text: str
     model: Optional[str] = "gpt-3.5-turbo"
     context: Optional[str] = None
 
 class TranslationResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     original_text: str
     translated_text: str
     source_lang: str
     target_lang: str
-    model_used: Optional[str] = None
+    translation_model: Optional[str] = None
 
 class TranslationTask(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     id: str
     book_id: str
     chapter_id: str
@@ -51,18 +61,24 @@ class TranslationTask(BaseModel):
 
 # TTS 相关模型
 class TTSRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     text: str
     voice: Optional[str] = "zh-CN-XiaoxiaoNeural"
     speed: Optional[float] = 1.0
     pitch: Optional[str] = "default"
 
 class TTSResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     audio_url: str
     text: str
     voice: str
     duration: Optional[float] = None
 
 class AudioTask(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     id: str
     book_id: str
     chapter_id: str
@@ -76,6 +92,8 @@ class AudioTask(BaseModel):
 
 # 音频合并相关
 class PlaylistItem(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     chapter_id: str
     chapter_title: str
     audio_url: str
@@ -83,6 +101,8 @@ class PlaylistItem(BaseModel):
     order: int
 
 class BookPlaylist(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     book_id: str
     book_title: str
     total_duration: float

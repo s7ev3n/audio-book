@@ -44,7 +44,7 @@ async def get_translation_status(translation_id: str):
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"获取翻译状态失败: {str(e)}")
 
-@router.get("/books/{book_id}/chapters/{chapter_id}/translation")
+@router.get("/books/{book_id}/chapters/{chapter_id:path}/translation")
 async def get_chapter_translation(book_id: str, chapter_id: str):
     """获取章节翻译结果"""
     try:

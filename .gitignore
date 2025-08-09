@@ -105,6 +105,14 @@ storage/translations/*
 !storage/audio/.gitkeep
 !storage/translations/.gitkeep
 
+# Backend storage directories
+backend/storage/uploads/*
+backend/storage/audio/*
+backend/storage/translations/*
+!backend/storage/uploads/.gitkeep
+!backend/storage/audio/.gitkeep
+!backend/storage/translations/.gitkeep
+
 # Database files
 *.db
 *.sqlite

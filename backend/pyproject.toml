@@ -1,0 +1,79 @@
+[project]
+name = "audio-book-backend"
+version = "0.1.0"
+description = "Audio Book Translation and TTS Backend Service"
+authors = [
+    { name = "s7ev3n", email = "s.eleven.73@gmail.com" }
+]
+dependencies = [
+    "fastapi==0.104.1",
+    "uvicorn==0.24.0",
+    "pydantic==2.5.0",
+    "pydantic-settings==2.1.0",
+    "python-multipart==0.0.6",
+    "ebooklib==0.18",
+    "beautifulsoup4==4.12.2",
+    "openai==1.3.7",
+    "anthropic==0.7.7",
+    "azure-cognitiveservices-speech==1.34.0",
+    "pydub==0.25.1",
+    "sqlalchemy==2.0.23",
+    "aiosqlite==0.19.0",
+    "httpx==0.25.2",
+    "python-dotenv==1.0.0",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/backend"]
+
+[tool.black]
+line-length = 88
+target-version = ["py38", "py39", "py310", "py311"]
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+include_trailing_comma = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "ebooklib.*",
+    "pydub.*",
+    "azure.cognitiveservices.speech.*",
+]
+ignore_missing_imports = true

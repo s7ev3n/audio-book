@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { CssBaseline, Box } from '@mui/material';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 import Header from './components/Header';
+import HomePage from './components/HomePage';
 import BookUpload from './components/BookUpload';
 import BookReader from './components/BookReader';
-import { useBookStore } from './store/bookStore';
 
 // 创建Material-UI主题
 const theme = createTheme({
@@ -33,8 +33,6 @@ const queryClient = new QueryClient({
 });
 
 function App() {
-  const { currentBook } = useBookStore();
-
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
@@ -46,9 +44,7 @@ function App() {
               <Routes>
                 <Route 
                   path="/" 
-                  element={
-                    currentBook ? <BookReader /> : <BookUpload />
-                  } 
+                  element={<HomePage />} 
                 />
                 <Route path="/upload" element={<BookUpload />} />
                 <Route path="/reader/:bookId" element={<BookReader />} />

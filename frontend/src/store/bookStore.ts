@@ -39,13 +39,25 @@ export const useBookStore = create<BookState>((set, get) => ({
   
   setChapters: (chapters) => set({ chapters }),
   
-  setCurrentChapter: (chapter, index) => set({ 
-    currentChapter: chapter, 
-    currentChapterIndex: index,
-    originalText: '',
-    translatedText: '',
-    audioUrl: null
-  }),
+  setCurrentChapter: (chapter, index) => {
+    const currentState = get();
+    // 始终更新章节信息，但只在切换到不同章节时清空内容
+    if (!currentState.currentChapter || currentState.currentChapter.id !== chapter.id) {
+      set({ 
+        currentChapter: chapter, 
+        currentChapterIndex: index,
+        originalText: '',
+        translatedText: '',
+        audioUrl: null
+      });
+    } else {
+      // 相同章节也更新，确保状态同步
+      set({ 
+        currentChapter: chapter, 
+        currentChapterIndex: index
+      });
+    }
+  },
   
   setOriginalText: (text) => set({ originalText: text }),
   

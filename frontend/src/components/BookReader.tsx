@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
-  Grid,
   Paper,
   Typography,
-  Divider,
   Fab,
   Drawer,
   useTheme,
@@ -26,19 +24,32 @@ const BookReader: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
   
   const {
-    currentBook,
     chapters,
     currentChapter,
     currentChapterIndex,
+    setCurrentBook,
     setChapters,
     setCurrentChapter
   } = useBookStore();
 
+  // 获取书籍信息
+  const { data: bookData, isLoading: isLoadingBook } = useQuery(
+    ['book', bookId],
+    () => bookId ? epubAPI.getBook(bookId) : Promise.resolve(null),
+    {
+      enabled: !!bookId,
+      onSuccess: (data) => {
+        if (data) {
+          setCurrentBook(data);
+        }
+      }
+    }
+  );
+
   // 获取章节列表
-  const { data: chaptersData, isLoading } = useQuery(
+  const { data: chaptersData, isLoading: isLoadingChapters } = useQuery(
     ['chapters', bookId],
     () => bookId ? epubAPI.getChapters(bookId) : Promise.resolve([]),
     {
@@ -53,6 +64,7 @@ const BookReader: React.FC = () => {
   );
 
   const handleChapterSelect = (chapter: any, index: number) => {
+    // 始终设置当前章节，让store内部决定是否清空内容
     setCurrentChapter(chapter, index);
     if (isMobile) {
       setDrawerOpen(false);
@@ -63,7 +75,7 @@ const BookReader: React.FC = () => {
     setDrawerOpen(!drawerOpen);
   };
 
-  if (isLoading) {
+  if (isLoadingBook || isLoadingChapters) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
         <Typography>加载中...</Typography>
@@ -71,10 +83,10 @@ const BookReader: React.FC = () => {
     );
   }
 
-  if (!currentBook || !bookId) {
+  if (!bookId) {
     return (
       <Box sx={{ textAlign: 'center', mt: 4 }}>
-        <Typography variant="h6">未找到书籍信息</Typography>
+        <Typography variant="h6">书籍ID不存在</Typography>
       </Box>
     );
   }
@@ -85,7 +97,6 @@ const BookReader: React.FC = () => {
         chapters={chapters}
         currentChapter={currentChapter}
         onChapterSelect={handleChapterSelect}
-        isPlaying={isPlaying}
       />
     </Box>
   );
@@ -118,16 +129,20 @@ const BookReader: React.FC = () => {
         {drawerContent}
       </Drawer>
 
-      <Box sx={{ flexGrow: 1, display: 'flex', overflow: 'hidden' }}>
+      <Box sx={{ flexGrow: 1, display: 'flex', overflow: 'hidden', height: '100%' }}>
         {/* 桌面端侧边栏 */}
         {!isMobile && (
           <Paper 
             elevation={1} 
             sx={{ 
               width: 300, 
+              minWidth: 300, // 确保最小宽度
+              maxWidth: 300, // 确保最大宽度
               height: '100%',
               overflow: 'hidden',
-              borderRadius: 0 
+              borderRadius: 0,
+              flexShrink: 0, // 防止压缩
+              zIndex: 1 // 确保在上层
             }}
           >
             {drawerContent}
@@ -135,7 +150,14 @@ const BookReader: React.FC = () => {
         )}
 
         {/* 主内容区域 */}
-        <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ 
+          flexGrow: 1, 
+          display: 'flex', 
+          flexDirection: 'column',
+          overflow: 'hidden',
+          width: !isMobile ? 'calc(100% - 300px)' : '100%', // 明确设置宽度
+          minWidth: 0 // 允许内容缩小
+        }}>
           {/* 翻译进度显示 */}
           <TranslationProgress />
           

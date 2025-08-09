@@ -16,17 +16,29 @@ import { useNavigate } from 'react-router-dom';
 
 import { epubAPI } from '../services/api';
 import { useBookStore } from '../store/bookStore';
+import type { BookInfo } from '../types/book';
 
-const BookUpload: React.FC = () => {
+interface BookUploadProps {
+  onUploadSuccess?: (book: BookInfo) => void;
+}
+
+const BookUpload: React.FC<BookUploadProps> = ({ onUploadSuccess }) => {
   const navigate = useNavigate();
   const { setCurrentBook, setChapters } = useBookStore();
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadProgress] = useState(0);
 
   const uploadMutation = useMutation(epubAPI.uploadEpub, {
     onSuccess: (bookInfo) => {
       setCurrentBook(bookInfo);
       setChapters(bookInfo.chapters);
-      navigate(`/reader/${bookInfo.id}`);
+      
+      // 如果有回调函数，调用它
+      if (onUploadSuccess) {
+        onUploadSuccess(bookInfo);
+      } else {
+        // 如果没有回调函数，保持原有行为（直接导航）
+        navigate(`/reader/${bookInfo.id}`);
+      }
     },
     onError: (error: any) => {
       console.error('Upload failed:', error);

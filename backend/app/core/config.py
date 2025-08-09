@@ -1,8 +1,16 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 import os
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+        protected_namespaces=()  # 禁用保护命名空间警告
+    )
+    
     # 基本配置
     project_name: str = "Audio Book Translator"
     version: str = "1.0.0"
@@ -17,7 +25,14 @@ class Settings(BaseSettings):
     # AI 翻译配置
     openai_api_key: Optional[str] = None
     claude_api_key: Optional[str] = None
-    translation_model: str = "gpt-3.5-turbo"  # 或 claude-3-haiku
+    
+    # 硅基流动配置
+    siliconflow_api_key: Optional[str] = None
+    siliconflow_base_url: str = "https://api.siliconflow.cn/v1"
+    
+    # 翻译模型配置
+    translation_model: str = "deepseek-ai/DeepSeek-V3"  # 硅基流动推荐模型
+    translation_provider: str = "siliconflow"  # 默认使用硅基流动
     
     # TTS 配置
     azure_tts_key: Optional[str] = None
@@ -33,10 +48,6 @@ class Settings(BaseSettings):
     # 并发配置
     max_workers: int = 4
     chunk_size: int = 1000  # 每次处理的字符数
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
 
 # 创建全局设置实例
 settings = Settings()

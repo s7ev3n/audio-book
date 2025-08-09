@@ -18,6 +18,21 @@ api.interceptors.response.use(
 
 // EPUB相关API
 export const epubAPI = {
+  getAllBooks: async (): Promise<BookInfo[]> => {
+    const response = await api.get('/epub/books');
+    return response.data;
+  },
+
+  getBook: async (bookId: string): Promise<BookInfo> => {
+    const response = await api.get(`/epub/books/${bookId}`);
+    return response.data;
+  },
+
+  deleteBook: async (bookId: string): Promise<{ message: string; book_id: string }> => {
+    const response = await api.delete(`/epub/books/${bookId}`);
+    return response.data;
+  },
+
   uploadEpub: async (file: File): Promise<BookInfo> => {
     const formData = new FormData();
     formData.append('file', file);
@@ -131,3 +146,6 @@ export const audioAPI = {
 };
 
 export default api;
+
+// 导出便捷函数
+export const getAllBooks = epubAPI.getAllBooks;
