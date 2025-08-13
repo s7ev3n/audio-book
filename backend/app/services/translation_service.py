@@ -17,9 +17,108 @@ class TranslationService:
         self.epub_service = EpubService()
         self.active_tasks: Dict[str, TranslationTask] = {}
         self.executor = ThreadPoolExecutor(max_workers=settings.max_workers)
+    
+    def _clean_html_content(self, html_content: str) -> str:
+        """清理HTML内容，提取纯文本"""
+        # 移除XML声明和DOCTYPE
+        content = re.sub(r'<\?xml[^>]*\?>', '', html_content)
+        content = re.sub(r'<!DOCTYPE[^>]*>', '', content)
         
-        # 初始化AI客户端
-        self._init_ai_clients()
+        # 将段落标签替换为换行符，保持段落结构
+        content = re.sub(r'</p>\s*<p[^>]*>', '\n\n', content)
+        content = re.sub(r'<p[^>]*>', '', content)
+        content = re.sub(r'</p>', '\n', content)
+        
+        # 移除其他HTML标签，但保留文本内容
+        content = re.sub(r'<[^>]+>', '', content)
+        
+        # 清理多余的空白字符
+        content = re.sub(r'\n\s*\n\s*\n', '\n\n', content)  # 最多保留两个换行符
+        content = re.sub(r'[ \t]+', ' ', content)  # 合并空格和制表符
+        content = content.strip()
+        
+        return content
+    
+    def _convert_numbers_to_chinese(self, text: str) -> str:
+        """将文本中的阿拉伯数字转换为中文数字"""
+        def number_to_chinese(num_str):
+            """将数字字符串转换为中文"""
+            # 中文数字映射
+            digit_map = {'0': '零', '1': '一', '2': '二', '3': '三', '4': '四', 
+                        '5': '五', '6': '六', '7': '七', '8': '八', '9': '九'}
+            
+            # 处理版本号格式 (如: 1.5.2, 3.14.159)
+            if '.' in num_str and num_str.count('.') > 1:
+                parts = num_str.split('.')
+                chinese_parts = []
+                for part in parts:
+                    if part.isdigit():
+                        chinese_parts.append(self._convert_integer_to_chinese(part, digit_map))
+                    else:
+                        chinese_parts.append(part)
+                return '点'.join(chinese_parts)
+            
+            # 处理普通小数 (如: 2.1, 3.14)
+            elif '.' in num_str:
+                integer_part, decimal_part = num_str.split('.')
+                chinese_integer = self._convert_integer_to_chinese(integer_part, digit_map)
+                chinese_decimal = '点' + ''.join(digit_map[d] for d in decimal_part)
+                return chinese_integer + chinese_decimal
+            
+            # 处理整数
+            return self._convert_integer_to_chinese(num_str, digit_map)
+        
+        def replace_number(match):
+            return number_to_chinese(match.group())
+        
+        # 匹配独立的数字（包括小数和版本号格式）
+        pattern = r'\b\d+(?:\.\d+)*\b'
+        return re.sub(pattern, replace_number, text)
+    
+    def _convert_integer_to_chinese(self, num_str: str, digit_map: dict) -> str:
+        """将整数字符串转换为中文"""
+        if not num_str or not num_str.isdigit():
+            return num_str
+            
+        # 如果是4位年份，逐位转换
+        if len(num_str) == 4:
+            return ''.join(digit_map[d] for d in num_str)
+        
+        # 处理普通数字
+        num = int(num_str)
+        if num == 0:
+            return '零'
+        elif num < 10:
+            return digit_map[str(num)]
+        elif num < 100:
+            tens = num // 10
+            ones = num % 10
+            if ones == 0:
+                return digit_map[str(tens)] + '十'
+            elif tens == 1:
+                return '十' + digit_map[str(ones)]
+            else:
+                return digit_map[str(tens)] + '十' + digit_map[str(ones)]
+        elif num < 1000:
+            hundreds = num // 100
+            remainder = num % 100
+            result = digit_map[str(hundreds)] + '百'
+            if remainder == 0:
+                return result
+            elif remainder < 10:
+                return result + '零' + digit_map[str(remainder)]
+            else:
+                tens = remainder // 10
+                ones = remainder % 10
+                if tens == 0:
+                    return result + '零' + digit_map[str(ones)]
+                elif ones == 0:
+                    return result + digit_map[str(tens)] + '十'
+                else:
+                    return result + digit_map[str(tens)] + '十' + digit_map[str(ones)]
+        else:
+            # 对于更大的数字，简单逐位转换
+            return ''.join(digit_map[d] for d in num_str)
     
     def _init_ai_clients(self):
         """初始化AI客户端"""
@@ -128,6 +227,10 @@ class TranslationService:
                 if not translated_text:
                     raise Exception("翻译结果为空")
                 
+                # 对翻译结果进行数字转换处理（针对中文翻译）
+                if target_lang == "zh":
+                    translated_text = self._convert_numbers_to_chinese(translated_text)
+                
                 return translated_text
                 
             except httpx.RequestError as e:
@@ -173,7 +276,13 @@ class TranslationService:
 2. 确保翻译流畅自然，符合中文表达习惯
 3. 保留原文的段落格式和结构
 4. 对于专有名词，请保持前后一致性
-5. 只返回翻译结果，不要包含解释、评论或其他内容
+5. **重要：所有阿拉伯数字必须转换为中文数字，以便语音合成时正确读音**
+   - 整数：1→一，2→二，10→十，25→二十五，100→一百
+   - 小数：2.1→二点一，3.14→三点一四
+   - 版本号：1.5.2→一点五点二，Chapter 2.1→第二点一章
+   - 年份：1995→一九九五年，2024→二零二四年
+6. 年份数字逐位转换，普通数字按中文习惯转换
+7. 只返回翻译结果，不要包含解释、评论或其他内容
 
 请开始翻译："""
     
@@ -221,8 +330,12 @@ class TranslationService:
             content = self.epub_service.get_chapter_content(book_id, chapter_id)
             print(f"任务 {task_id} 获取到章节内容，长度: {len(content)}")
             
+            # 清理HTML标签，提取纯文本用于翻译
+            clean_content = self._clean_html_content(content)
+            print(f"任务 {task_id} 清理HTML后内容长度: {len(clean_content)}")
+            
             # 将长文本分块处理
-            chunks = self._split_text_into_chunks(content)
+            chunks = self._split_text_into_chunks(clean_content)
             total_chunks = len(chunks)
             print(f"任务 {task_id} 分割成 {total_chunks} 个块")
             

@@ -67,6 +67,8 @@ class TTSRequest(BaseModel):
     voice: Optional[str] = "zh-CN-XiaoxiaoNeural"
     speed: Optional[float] = 1.0
     pitch: Optional[str] = "default"
+    ref_audio_url: Optional[str] = None  # 可选的参考音频URL
+    ref_text: Optional[str] = None  # 可选的参考文本
 
 class TTSResponse(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
@@ -82,10 +84,11 @@ class AudioTask(BaseModel):
     id: str
     book_id: str
     chapter_id: str
-    translation_id: str
+    translation_id: Optional[str] = None
     status: TaskStatus
     audio_url: Optional[str] = None
     duration: Optional[float] = None
+    progress: Optional[float] = 0.0
     created_at: datetime
     completed_at: Optional[datetime] = None
     error_message: Optional[str] = None

@@ -12,6 +12,13 @@ yarn.lock
 /.next
 /out
 
+# Frontend build directory
+frontend/build/
+frontend/dist/
+
+# F5-TTS service cache
+f5tts-service/cache/
+
 # Runtime data
 pids
 *.pid

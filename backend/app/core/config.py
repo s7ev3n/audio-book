@@ -35,9 +35,13 @@ class Settings(BaseSettings):
     translation_provider: str = "siliconflow"  # 默认使用硅基流动
     
     # TTS 配置
+    tts_provider: str = "f5tts"  # "azure" 或 "f5tts"
     azure_tts_key: Optional[str] = None
     azure_tts_region: Optional[str] = None
     tts_voice: str = "zh-CN-XiaoxiaoNeural"  # 中文语音
+    
+    # F5-TTS微服务配置
+    f5tts_service_url: str = "http://localhost:8001"
     
     # 文件存储配置
     upload_dir: str = "./storage/uploads"

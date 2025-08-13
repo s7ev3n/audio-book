@@ -11,15 +11,39 @@ services:
     environment:
       - DEBUG=true
       - PYTHONPATH=/app
+      - TTS_PROVIDER=f5tts
+      - F5TTS_SERVICE_URL=http://f5tts-service:8001
     env_file:
       - ./backend/.env
     restart: unless-stopped
+    depends_on:
+      - f5tts-service
     healthcheck:
       test: ["CMD-SHELL", "netstat -tlnp | grep :8000 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - audio-book-net
+
+  f5tts-service:
+    build:
+      context: ./f5tts-service
+    ports:
+      - "8001:8001"
+    volumes:
+      - huggingface-cache:/root/.cache/huggingface/hub/
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    networks:
+      - audio-book-net
     
   frontend:
     build: ./frontend
@@ -35,6 +59,13 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    networks:
+      - audio-book-net
 
 volumes:
   storage_data:
+  huggingface-cache:
+
+networks:
+  audio-book-net:
+    driver: bridge

@@ -15,7 +15,8 @@ import {
   Translate,
   VolumeUp,
   Refresh,
-  PlayArrow
+  PlayArrow,
+  CheckCircle
 } from '@mui/icons-material';
 import { useQuery, useMutation } from 'react-query';
 
@@ -34,6 +35,7 @@ const TextDisplay: React.FC<TextDisplayProps> = ({ bookId, chapter }) => {
     translatedText,
     isTranslating,
     isGeneratingAudio,
+    audioUrl,
     setOriginalText,
     setTranslatedText,
     setTranslating,
@@ -45,6 +47,10 @@ const TextDisplay: React.FC<TextDisplayProps> = ({ bookId, chapter }) => {
   const [audioTaskId, setAudioTaskId] = useState<string | null>(null);
   const [highlightedText, setHighlightedText] = useState<string>('');
 
+  // 添加调试日志
+  useEffect(() => {
+    console.log('TextDisplay state - translationTaskId:', translationTaskId, 'audioTaskId:', audioTaskId);
+  }, [translationTaskId, audioTaskId]);
   // 获取原文内容
   const { data: chapterContent, isLoading, refetch } = useQuery(
     ['chapterContent', bookId, chapter.id],
@@ -82,6 +88,23 @@ const TextDisplay: React.FC<TextDisplayProps> = ({ bookId, chapter }) => {
     }
   }, [chapter.id, bookId, translatedText, isTranslating, setTranslatedText]);
 
+  // 检查并加载已存在的音频文件
+  useEffect(() => {
+    if (chapter.id && bookId && !audioUrl && !isGeneratingAudio) {
+      console.log('检查是否存在音频文件:', bookId, chapter.id);
+      ttsAPI.getChapterAudioInfo(bookId, chapter.id)
+        .then((audioInfo) => {
+          if (audioInfo && audioInfo.audio_url) {
+            console.log('找到已存在的音频文件:', audioInfo);
+            setAudioUrl(audioInfo.audio_url);
+          }
+        })
+        .catch((error) => {
+          console.log('未找到音频文件或获取失败:', error.response?.status, error.message);
+        });
+    }
+  }, [chapter.id, bookId, audioUrl, isGeneratingAudio, setAudioUrl]);
+
   // 翻译章节
   const translateMutation = useMutation(
     () => translationAPI.translateChapter(bookId, chapter.id),
@@ -99,10 +122,11 @@ const TextDisplay: React.FC<TextDisplayProps> = ({ bookId, chapter }) => {
 
   // 生成音频
   const generateAudioMutation = useMutation(
-    (translationId: string) => 
+    (translationId?: string) => 
       ttsAPI.generateChapterAudio(bookId, chapter.id, translationId),
     {
       onSuccess: (taskId) => {
+        console.log('音频生成任务创建成功, taskId:', taskId);
         setAudioTaskId(taskId);
         setGeneratingAudio(true);
       },
@@ -129,7 +153,7 @@ const TextDisplay: React.FC<TextDisplayProps> = ({ bookId, chapter }) => {
               console.log('获取到翻译内容:', translation);
               setTranslatedText(translation);
               setTranslating(false);
-              setTranslationTaskId(null);
+              // 不清除translationTaskId，因为生成音频时需要用到
             })
             .catch((error) => {
               console.error('获取翻译内容失败:', error);
@@ -178,8 +202,14 @@ const TextDisplay: React.FC<TextDisplayProps> = ({ bookId, chapter }) => {
   };
 
   const handleGenerateAudio = () => {
-    if (translationTaskId && !isGeneratingAudio) {
-      generateAudioMutation.mutate(translationTaskId);
+    console.log('点击生成音频按钮, translationTaskId:', translationTaskId, 'isGeneratingAudio:', isGeneratingAudio, 'translatedText:', !!translatedText);
+    
+    // 如果有翻译内容，就可以生成音频（无论是否有translationTaskId）
+    if ((translatedText || translationTaskId) && !isGeneratingAudio) {
+      console.log('开始生成音频, translationTaskId:', translationTaskId);
+      generateAudioMutation.mutate(translationTaskId || undefined);
+    } else {
+      console.log('无法生成音频: 没有翻译内容或正在生成中');
     }
   };
 
@@ -213,15 +243,19 @@ const TextDisplay: React.FC<TextDisplayProps> = ({ bookId, chapter }) => {
               </Button>
             </Tooltip>
             
-            <Tooltip title="生成语音">
+            <Tooltip title={audioUrl ? "重新生成语音" : "生成语音"}>
               <Button
                 variant="outlined"
-                startIcon={isGeneratingAudio ? <CircularProgress size={16} /> : <VolumeUp />}
+                startIcon={
+                  isGeneratingAudio ? <CircularProgress size={16} /> : 
+                  audioUrl ? <CheckCircle /> : <VolumeUp />
+                }
                 onClick={handleGenerateAudio}
                 disabled={!translatedText || isGeneratingAudio}
                 size="small"
+                color={audioUrl ? "success" : "primary"}
               >
-                {isGeneratingAudio ? '生成中...' : '生成语音'}
+                {isGeneratingAudio ? '生成中...' : (audioUrl ? '重新生成语音' : '生成语音')}
               </Button>
             </Tooltip>
           </Box>
@@ -236,6 +270,12 @@ const TextDisplay: React.FC<TextDisplayProps> = ({ bookId, chapter }) => {
         {generateAudioMutation.isError && (
           <Alert severity="error" sx={{ mb: 1 }}>
             音频生成失败，请重试
+          </Alert>
+        )}
+        
+        {audioUrl && !isGeneratingAudio && (
+          <Alert severity="success" sx={{ mb: 1 }}>
+            音频已生成完成，可以播放
           </Alert>
         )}
       </Paper>

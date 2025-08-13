@@ -45,7 +45,9 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // 当章节变化时，更新音频URL
   useEffect(() => {
     if (chapter && bookId) {
-      const newAudioUrl = `/storage/audio/${bookId}_${chapter.id}.mp3`;
+      // 与后端保持一致的文件名转换逻辑
+      const safeChapterId = chapter.id.replace(/\//g, "_").replace(/\\/g, "_").replace(/:/g, "_");
+      const newAudioUrl = `/storage/audio/${bookId}_${safeChapterId}.mp3`;
       setAudioUrl(newAudioUrl);
       setCurrentTime(0);
       setIsPlaying(false);
@@ -79,26 +81,51 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       setDuration(0);
     };
 
+    const handleError = (e: Event) => {
+      console.error('Audio loading error:', e);
+      console.error('Audio source:', audio.src);
+      console.error('Audio network state:', audio.networkState);
+      console.error('Audio ready state:', audio.readyState);
+    };
+
+    const handleCanPlay = () => {
+      console.log('Audio can play:', audio.src);
+      console.log('Audio duration:', audio.duration);
+    };
+
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('durationchange', handleDurationChange);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('loadstart', handleLoadStart);
+    audio.addEventListener('error', handleError);
+    audio.addEventListener('canplay', handleCanPlay);
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('durationchange', handleDurationChange);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('loadstart', handleLoadStart);
+      audio.removeEventListener('error', handleError);
+      audio.removeEventListener('canplay', handleCanPlay);
     };
   }, [chapters, currentIndex, onChapterChange]);
 
   const togglePlayPause = () => {
     const audio = audioRef.current;
-    if (!audio || !audioUrl) return;
+    console.log('togglePlayPause called');
+    console.log('audio:', audio);
+    console.log('audioUrl:', audioUrl);
+    console.log('isPlaying:', isPlaying);
+    
+    if (!audio || !audioUrl) {
+      console.log('No audio element or URL available');
+      return;
+    }
 
     if (isPlaying) {
       audio.pause();
     } else {
+      console.log('Attempting to play audio from:', audioUrl);
       audio.play().catch(error => {
         console.error('Audio play failed:', error);
       });

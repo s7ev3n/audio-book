@@ -12,7 +12,9 @@ async def generate_speech(request: TTSRequest):
         audio_result = await tts_service.text_to_speech(
             text=request.text,
             voice=request.voice,
-            speed=request.speed
+            speed=request.speed,
+            ref_audio_url=request.ref_audio_url,
+            ref_text=request.ref_text
         )
         return TTSResponse(
             audio_url=f"/storage/audio/{audio_result['audio_filename']}",
@@ -24,7 +26,7 @@ async def generate_speech(request: TTSRequest):
         raise HTTPException(status_code=500, detail=f"TTS生成失败: {str(e)}")
 
 @router.post("/generate/chapter")
-async def generate_chapter_audio(book_id: str, chapter_id: str, translation_id: str):
+async def generate_chapter_audio(book_id: str, chapter_id: str, translation_id: str = None):
     """为章节生成语音"""
     try:
         audio_id = await tts_service.generate_chapter_audio(
@@ -45,7 +47,7 @@ async def get_audio_generation_status(audio_id: str):
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"获取语音状态失败: {str(e)}")
 
-@router.get("/books/{book_id}/chapters/{chapter_id}/audio")
+@router.get("/books/{book_id}/chapters/{chapter_id:path}/audio")
 async def get_chapter_audio_info(book_id: str, chapter_id: str):
     """获取章节音频信息"""
     try:

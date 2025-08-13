@@ -87,11 +87,33 @@ export const translationAPI = {
 
 // TTS相关API
 export const ttsAPI = {
-  generateSpeech: async (text: string, voice?: string, speed?: number) => {
-    const response = await api.post('/tts/generate', {
+  generateSpeech: async (text: string, voice?: string, speed?: number, refAudioUrl?: string, refText?: string) => {
+    const requestData: any = {
       text,
       voice: voice || 'zh-CN-XiaoxiaoNeural',
       speed: speed || 1.0
+    };
+    
+    if (refAudioUrl) {
+      requestData.ref_audio_url = refAudioUrl;
+    }
+    if (refText !== undefined) {
+      requestData.ref_text = refText;
+    }
+    
+    const response = await api.post('/tts/generate', requestData);
+    return response.data;
+  },
+
+  uploadReferenceAudio: async (file: File): Promise<{file_id: string, file_path: string}> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // 直接调用F5-TTS服务的上传接口
+    const response = await axios.post('http://localhost:8001/upload-ref-audio', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
     return response.data;
   },
@@ -99,14 +121,19 @@ export const ttsAPI = {
   generateChapterAudio: async (
     bookId: string, 
     chapterId: string, 
-    translationId: string
+    translationId?: string
   ): Promise<string> => {
+    const params: any = { 
+      book_id: bookId, 
+      chapter_id: chapterId
+    };
+    
+    if (translationId) {
+      params.translation_id = translationId;
+    }
+    
     const response = await api.post(`/tts/generate/chapter`, null, {
-      params: { 
-        book_id: bookId, 
-        chapter_id: chapterId, 
-        translation_id: translationId 
-      }
+      params
     });
     return response.data.audio_id;
   },

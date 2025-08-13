@@ -1,12 +1,14 @@
 import asyncio
 import uuid
 import os
+import re
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 import azure.cognitiveservices.speech as speechsdk
 from pydub import AudioSegment
 import tempfile
+import httpx
 
 from ..core.config import settings
 from ..models.schemas import AudioTask, TaskStatus
@@ -24,7 +26,9 @@ class TTSService:
     def _init_tts_clients(self):
         """初始化TTS客户端"""
         self.azure_speech_config = None
+        self.f5tts_service_url = getattr(settings, 'f5tts_service_url', 'http://f5tts-service:8001')
         
+        # 初始化Azure TTS（如果配置了）
         if settings.azure_tts_key and settings.azure_tts_region:
             self.azure_speech_config = speechsdk.SpeechConfig(
                 subscription=settings.azure_tts_key,
@@ -33,7 +37,8 @@ class TTSService:
             self.azure_speech_config.speech_synthesis_voice_name = settings.tts_voice
     
     async def text_to_speech(self, text: str, voice: str = None, 
-                            speed: float = 1.0) -> Dict[str, Any]:
+                            speed: float = 1.0, ref_audio_url: Optional[str] = None,
+                            ref_text: Optional[str] = None) -> Dict[str, Any]:
         """将文本转换为语音"""
         if not voice:
             voice = settings.tts_voice
@@ -47,7 +52,11 @@ class TTSService:
         os.makedirs(settings.audio_dir, exist_ok=True)
         
         try:
-            if self.azure_speech_config:
+            if settings.tts_provider == "f5tts":
+                await self._synthesize_with_f5tts_service(
+                    text, audio_path, speed, ref_audio_url, ref_text
+                )
+            elif self.azure_speech_config:
                 await self._synthesize_with_azure(
                     text, audio_path, voice, speed
                 )
@@ -113,6 +122,68 @@ class TTSService:
             self.executor, _synthesize
         )
     
+    async def _synthesize_with_f5tts_service(self, text: str, output_path: str, speed: float, 
+                                           ref_audio_url: Optional[str] = None, ref_text: Optional[str] = None):
+        """使用F5-TTS微服务合成语音"""
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            # 创建TTS任务请求
+            tts_request = {
+                "text": text,
+                "language": "auto",
+                "speed": speed,
+                "remove_silence": True
+            }
+            
+            # 如果提供了自定义参考音频，添加到请求中
+            if ref_audio_url:
+                tts_request["ref_audio_url"] = ref_audio_url
+            if ref_text is not None:
+                tts_request["ref_text"] = ref_text
+            
+            # 创建TTS任务
+            response = await client.post(
+                f"{self.f5tts_service_url}/tts",
+                json=tts_request
+            )
+            
+            if response.status_code != 200:
+                raise Exception(f"Failed to create TTS task: {response.text}")
+            
+            task_data = response.json()
+            task_id = task_data["task_id"]
+            
+            # 轮询任务状态
+            while True:
+                status_response = await client.get(
+                    f"{self.f5tts_service_url}/task/{task_id}"
+                )
+                
+                if status_response.status_code != 200:
+                    raise Exception(f"Failed to get task status: {status_response.text}")
+                
+                status_data = status_response.json()
+                
+                if status_data["status"] == "completed":
+                    # 下载音频文件
+                    audio_filename = status_data["audio_url"].split("/")[-1]
+                    audio_response = await client.get(
+                        f"{self.f5tts_service_url}/audio/{audio_filename}"
+                    )
+                    
+                    if audio_response.status_code != 200:
+                        raise Exception(f"Failed to download audio: {audio_response.text}")
+                    
+                    # 保存音频文件
+                    with open(output_path, "wb") as f:
+                        f.write(audio_response.content)
+                    break
+                    
+                elif status_data["status"] == "failed":
+                    raise Exception(f"TTS synthesis failed: {status_data.get('error_message', 'Unknown error')}")
+                
+                # 等待一段时间后重新检查
+                await asyncio.sleep(2)
+    
     def _get_audio_duration(self, audio_path: str) -> float:
         """获取音频文件时长（秒）"""
         try:
@@ -125,9 +196,19 @@ class TTSService:
             return 0.0
     
     async def generate_chapter_audio(self, book_id: str, chapter_id: str, 
-                                   translation_id: str) -> str:
+                                   translation_id: Optional[str] = None) -> str:
         """为章节生成音频"""
         task_id = str(uuid.uuid4())
+        
+        # 如果没有提供translation_id，尝试从已存在的翻译中获取
+        if not translation_id:
+            # 获取翻译内容，不需要特定的translation_id
+            try:
+                translation_content = await self.translation_service.get_translation_result(book_id, chapter_id)
+                if not translation_content:
+                    raise ValueError("未找到章节翻译内容，请先翻译章节")
+            except Exception as e:
+                raise ValueError(f"获取翻译内容失败: {str(e)}")
         
         # 创建音频任务
         task = AudioTask(
@@ -149,7 +230,7 @@ class TTSService:
         return task_id
     
     async def _process_chapter_audio_generation(self, task_id: str, book_id: str, 
-                                              chapter_id: str, translation_id: str):
+                                              chapter_id: str, translation_id: Optional[str] = None):
         """处理章节音频生成任务"""
         task = self.active_tasks[task_id]
         
@@ -165,13 +246,24 @@ class TTSService:
             if not translation_content:
                 raise Exception(f"找不到章节 {chapter_id} 的翻译内容")
             
+            # 翻译内容现在已经是清理后的纯文本
+            if not translation_content.strip():
+                raise Exception(f"章节 {chapter_id} 的翻译内容为空")
+            
+            print(f"翻译内容长度: {len(translation_content)}")
+            print(f"翻译内容预览: {translation_content[:200]}...")
+            
             # 将长文本分段处理，避免TTS限制
             segments = self._split_text_for_tts(translation_content)
             audio_segments = []
             
             for i, segment in enumerate(segments):
-                # 生成单个段落的音频
-                segment_result = await self.text_to_speech(segment)
+                # 生成单个段落的音频，使用自定义参考音频
+                segment_result = await self.text_to_speech(
+                    segment, 
+                    ref_audio_url="/tmp/f5tts_ref_audio/fengtouquan.wav",
+                    ref_text=""
+                )
                 audio_segments.append(segment_result["audio_path"])
                 
                 # 更新进度
@@ -244,7 +336,9 @@ class TTSService:
                 merged_audio = merged_audio + silence + segment_audio
             
             # 保存合并后的音频
-            output_filename = f"{book_id}_{chapter_id}.mp3"
+            # 将chapter_id中的斜杠和其他特殊字符替换为安全字符
+            safe_chapter_id = chapter_id.replace("/", "_").replace("\\", "_").replace(":", "_")
+            output_filename = f"{book_id}_{safe_chapter_id}.mp3"
             output_path = os.path.join(settings.audio_dir, output_filename)
             
             # 转换为MP3格式以减小文件大小
@@ -277,7 +371,9 @@ class TTSService:
     
     async def get_chapter_audio_info(self, book_id: str, chapter_id: str) -> Optional[Dict[str, Any]]:
         """获取章节音频信息"""
-        audio_filename = f"{book_id}_{chapter_id}.mp3"
+        # 使用与生成时相同的文件名转换逻辑
+        safe_chapter_id = chapter_id.replace("/", "_").replace("\\", "_").replace(":", "_")
+        audio_filename = f"{book_id}_{safe_chapter_id}.mp3"
         audio_path = os.path.join(settings.audio_dir, audio_filename)
         
         if os.path.exists(audio_path):
