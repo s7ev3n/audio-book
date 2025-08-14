@@ -17,6 +17,7 @@ class TranslationService:
         self.epub_service = EpubService()
         self.active_tasks: Dict[str, TranslationTask] = {}
         self.executor = ThreadPoolExecutor(max_workers=settings.max_workers)
+        self._init_ai_clients()
     
     def _clean_html_content(self, html_content: str) -> str:
         """清理HTML内容，提取纯文本"""
@@ -499,7 +500,7 @@ class TranslationService:
         }
     
     async def get_translation_result(self, book_id: str, chapter_id: str) -> Optional[str]:
-        """获取翻译结果"""
+        """获取翻译结果，如果不存在则自动重新翻译"""
         # 将章节ID转换为安全的文件名（与保存时保持一致）
         safe_chapter_id = chapter_id.replace('/', '_').replace('\\', '_')
         
@@ -519,8 +520,107 @@ class TranslationService:
                 return content
         else:
             print(f"翻译文件不存在: {translation_path}")
-        
+            print(f"正在为章节 {chapter_id} 启动新的翻译任务...")
+            
+            # 自动启动翻译任务
+            try:
+                task_id = await self.translate_chapter(book_id, chapter_id)
+                print(f"已启动翻译任务: {task_id}")
+                
+                # 返回一个提示信息，说明正在翻译
+                return f"章节 {chapter_id} 正在翻译中，任务ID: {task_id}。请稍后再次获取翻译结果。"
+            except Exception as e:
+                print(f"启动翻译任务失败: {str(e)}")
+                return f"翻译文件不存在，且无法启动新的翻译任务: {str(e)}"
+
         return None
+
+    async def retranslate_chapter(self, book_id: str, chapter_id: str, force: bool = False) -> str:
+        """重新翻译指定章节
+        
+        Args:
+            book_id: 书籍ID
+            chapter_id: 章节ID  
+            force: 是否强制重新翻译（即使翻译文件已存在）
+            
+        Returns:
+            翻译任务ID
+        """
+        safe_chapter_id = chapter_id.replace('/', '_').replace('\\', '_')
+        translation_path = os.path.join(
+            getattr(settings, 'translation_dir', './storage/translations'), 
+            book_id, 
+            f"{safe_chapter_id}.txt"
+        )
+        
+        # 如果不是强制模式且文件已存在，则不重新翻译
+        if not force and os.path.exists(translation_path):
+            print(f"翻译文件已存在，跳过重新翻译: {translation_path}")
+            raise Exception(f"章节 {chapter_id} 已翻译，使用 force=True 强制重新翻译")
+        
+        # 如果是强制模式且文件存在，创建备份
+        if force and os.path.exists(translation_path):
+            backup_path = f"{translation_path}.backup"
+            import shutil
+            shutil.copy2(translation_path, backup_path)
+            print(f"已创建翻译文件备份: {backup_path}")
+        
+        print(f"开始重新翻译章节: {book_id}/{chapter_id}")
+        task_id = await self.translate_chapter(book_id, chapter_id)
+        print(f"重新翻译任务已启动，任务ID: {task_id}")
+        
+        return task_id
+
+    def cleanup_completed_tasks(self, max_age_hours: int = 24):
+        """清理已完成的任务（避免内存泄漏）
+        
+        Args:
+            max_age_hours: 清理多少小时前完成的任务
+        """
+        from datetime import timedelta
+        
+        current_time = datetime.now()
+        tasks_to_remove = []
+        
+        for task_id, task in self.active_tasks.items():
+            # 清理已完成且超过指定时间的任务
+            if task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
+                completion_time = task.completed_at or task.created_at
+                if current_time - completion_time > timedelta(hours=max_age_hours):
+                    tasks_to_remove.append(task_id)
+        
+        for task_id in tasks_to_remove:
+            del self.active_tasks[task_id]
+            print(f"已清理任务: {task_id}")
+        
+        if tasks_to_remove:
+            print(f"共清理了 {len(tasks_to_remove)} 个已完成的任务")
+        
+        return len(tasks_to_remove)
+
+    def get_active_tasks_summary(self) -> Dict[str, Any]:
+        """获取活跃任务的摘要信息"""
+        summary = {
+            "total_tasks": len(self.active_tasks),
+            "by_status": {},
+            "tasks": []
+        }
+        
+        for task in self.active_tasks.values():
+            status = task.status.value
+            summary["by_status"][status] = summary["by_status"].get(status, 0) + 1
+            
+            summary["tasks"].append({
+                "task_id": task.id,
+                "book_id": task.book_id,
+                "chapter_id": task.chapter_id,
+                "status": status,
+                "progress": task.progress,
+                "created_at": task.created_at.isoformat(),
+                "completed_at": task.completed_at.isoformat() if task.completed_at else None
+            })
+        
+        return summary
     
     async def __aenter__(self):
         """异步上下文管理器入口"""
