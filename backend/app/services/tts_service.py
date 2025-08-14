@@ -261,7 +261,7 @@ class TTSService:
                 # 生成单个段落的音频，使用自定义参考音频
                 segment_result = await self.text_to_speech(
                     segment, 
-                    ref_audio_url="/tmp/f5tts_ref_audio/fengtouquan.wav",
+                    ref_audio_url="/workspace/ref_audio/fengtouquan.wav",
                     ref_text=""
                 )
                 audio_segments.append(segment_result["audio_path"])
